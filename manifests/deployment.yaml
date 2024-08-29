@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shsingh-3
+  annotations:
+    image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"shsingh-3:1.0","namespace":"shsingh-3"},"fieldPath":"spec.template.spec.containers[?(@.name==\"shsingh-3\")].image","pause":"false"}]'
+  labels:
+    app: shsingh-3
+    backstage.io/kubernetes-id: shsingh-3
+spec:
+  selector:
+    matchLabels:
+      app: shsingh-3
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+      labels:
+        app: shsingh-3
+        backstage.io/kubernetes-id: shsingh-3
+    spec:
+      volumes:
+        - name: truststore
+          secret:
+            secretName: shsingh-3-truststore
+            items:
+              - key: truststore.jks
+                path: clienttruststore.jks
+            defaultMode: 420
+      containers:
+        - name: shsingh-3
+          image: image-registry.openshift-image-registry.svc:5000/shsingh-3/shsingh-3:1.0
+          ports:
+            - containerPort: 8080
+              name: http
+          livenessProbe:
+            httpGet:
+              port: 8080
+              path: /actuator/health/liveness
+              scheme: HTTP
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              port: 8080
+              path: /actuator/health/readiness
+              scheme: HTTP
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              memory: 1024Mi
+          volumeMounts:
+            - name: truststore
+              readOnly: true
+              mountPath: /mnt/secrets
